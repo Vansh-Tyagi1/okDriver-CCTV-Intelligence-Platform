@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -14,10 +14,6 @@ router = APIRouter(
     tags=["Camera Health"],
 )
 
-
-# =========================================================
-# HEALTH STATUS
-# =========================================================
 
 def calculate_health_status(camera: Camera) -> str:
     """
@@ -37,6 +33,10 @@ def calculate_health_status(camera: Camera) -> str:
     now = datetime.utcnow()
     heartbeat_age = now - camera.last_heartbeat
 
+    # Protect against an invalid future heartbeat.
+    if heartbeat_age < timedelta(0):
+        return "ONLINE"
+
     if heartbeat_age <= timedelta(seconds=30):
         return "ONLINE"
 
@@ -45,10 +45,6 @@ def calculate_health_status(camera: Camera) -> str:
 
     return "OFFLINE"
 
-
-# =========================================================
-# ALL CAMERA HEALTH
-# =========================================================
 
 @router.get("")
 def get_camera_health(
@@ -64,10 +60,7 @@ def get_camera_health(
     result = []
 
     for camera in cameras:
-
-        health_status = calculate_health_status(
-            camera
-        )
+        health_status = calculate_health_status(camera)
 
         result.append(
             {
@@ -87,10 +80,6 @@ def get_camera_health(
     return result
 
 
-# =========================================================
-# SINGLE CAMERA HEALTH
-# =========================================================
-
 @router.get("/{camera_id}")
 def get_single_camera_health(
     camera_id: int,
@@ -105,13 +94,11 @@ def get_single_camera_health(
 
     if not camera:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Camera not found",
         )
 
-    health_status = calculate_health_status(
-        camera
-    )
+    health_status = calculate_health_status(camera)
 
     return {
         "camera_id": camera.id,
@@ -127,10 +114,6 @@ def get_single_camera_health(
     }
 
 
-# =========================================================
-# CAMERA HEARTBEAT
-# =========================================================
-
 @router.post("/{camera_id}/heartbeat")
 def camera_heartbeat(
     camera_id: int,
@@ -145,13 +128,13 @@ def camera_heartbeat(
 
     if not camera:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Camera not found",
         )
 
     if not camera.is_active:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Camera is disabled",
         )
 
@@ -160,8 +143,15 @@ def camera_heartbeat(
     camera.last_heartbeat = now
     camera.status = "ONLINE"
 
-    db.commit()
-    db.refresh(camera)
+    try:
+        db.commit()
+        db.refresh(camera)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update camera heartbeat",
+        )
 
     return {
         "success": True,

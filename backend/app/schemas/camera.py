@@ -66,9 +66,16 @@ class CameraBase(BaseModel):
         "name",
         "camera_type",
         "source_protocol",
+        "department",
+        "stream_endpoint",
+        "zone",
+        "storage_metadata",
     )
     @classmethod
-    def validate_required_strings(cls, value: str) -> str:
+    def validate_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
         value = value.strip()
 
         if not value:
@@ -144,8 +151,12 @@ class CameraUpdate(BaseModel):
 
     @field_validator(
         "name",
+        "department",
         "camera_type",
         "source_protocol",
+        "stream_endpoint",
+        "zone",
+        "storage_metadata",
     )
     @classmethod
     def validate_optional_strings(

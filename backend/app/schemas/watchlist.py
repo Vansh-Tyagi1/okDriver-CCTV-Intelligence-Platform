@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class WatchlistCreate(BaseModel):
@@ -25,6 +25,30 @@ class WatchlistCreate(BaseModel):
     )
 
     description: str | None = None
+
+    @field_validator(
+        "entity_type",
+        "identifier",
+        "name",
+        "category",
+        "description",
+    )
+    @classmethod
+    def validate_strings(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Value cannot be empty or whitespace"
+            )
+
+        return value
 
 
 class WatchlistUpdate(BaseModel):
@@ -54,6 +78,30 @@ class WatchlistUpdate(BaseModel):
     description: str | None = None
 
     is_active: bool | None = None
+
+    @field_validator(
+        "entity_type",
+        "identifier",
+        "name",
+        "category",
+        "description",
+    )
+    @classmethod
+    def validate_optional_strings(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Value cannot be empty or whitespace"
+            )
+
+        return value
 
 
 class WatchlistResponse(BaseModel):

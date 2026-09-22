@@ -34,7 +34,9 @@ def create_camera(
 ):
     existing_camera = (
         db.query(Camera)
-        .filter(Camera.camera_id == camera_data.camera_id)
+        .filter(
+            Camera.camera_id == camera_data.camera_id
+        )
         .first()
     )
 
@@ -48,23 +50,31 @@ def create_camera(
         **camera_data.model_dump()
     )
 
-    db.add(camera)
-    db.flush()
+    try:
+        db.add(camera)
+        db.flush()
 
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="CAMERA_CREATED",
-        resource_type="CAMERA",
-        resource_id=str(camera.id),
-        description=(
-            f"Camera {camera.camera_id} "
-            f"({camera.name}) was created."
-        ),
-    )
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="CAMERA_CREATED",
+            resource_type="CAMERA",
+            resource_id=str(camera.id),
+            description=(
+                f"Camera {camera.camera_id} "
+                f"({camera.name}) was created."
+            ),
+        )
 
-    db.commit()
-    db.refresh(camera)
+        db.commit()
+        db.refresh(camera)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create camera",
+        )
 
     return camera
 
@@ -84,7 +94,7 @@ def list_cameras(
     query = db.query(Camera)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{search.strip()}%"
 
         query = query.filter(
             (Camera.camera_id.ilike(search_pattern))
@@ -93,17 +103,17 @@ def list_cameras(
 
     if status_filter:
         query = query.filter(
-            Camera.status == status_filter.upper()
+            Camera.status == status_filter.strip().upper()
         )
 
     if department:
         query = query.filter(
-            Camera.department == department
+            Camera.department == department.strip()
         )
 
     if zone:
         query = query.filter(
-            Camera.zone == zone
+            Camera.zone == zone.strip()
         )
 
     return (
@@ -163,25 +173,55 @@ def update_camera(
         exclude_unset=True
     )
 
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update",
+        )
+
+    if "camera_id" in update_data:
+        duplicate_camera = (
+            db.query(Camera)
+            .filter(
+                Camera.camera_id == update_data["camera_id"],
+                Camera.id != camera.id,
+            )
+            .first()
+        )
+
+        if duplicate_camera:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Camera ID already exists",
+            )
+
     for field, value in update_data.items():
         setattr(camera, field, value)
 
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="CAMERA_UPDATED",
-        resource_type="CAMERA",
-        resource_id=str(camera.id),
-        description=(
-            f"Camera {camera.camera_id} "
-            f"({camera.name}) was updated. "
-            f"Changed fields: "
-            f"{', '.join(update_data.keys())}."
-        ),
-    )
+    try:
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="CAMERA_UPDATED",
+            resource_type="CAMERA",
+            resource_id=str(camera.id),
+            description=(
+                f"Camera {camera.camera_id} "
+                f"({camera.name}) was updated. "
+                f"Changed fields: "
+                f"{', '.join(update_data.keys())}."
+            ),
+        )
 
-    db.commit()
-    db.refresh(camera)
+        db.commit()
+        db.refresh(camera)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update camera",
+        )
 
     return camera
 
@@ -207,22 +247,36 @@ def disable_camera(
             detail="Camera not found",
         )
 
+    if not camera.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Camera is already disabled",
+        )
+
     camera.is_active = False
     camera.status = "OFFLINE"
 
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="CAMERA_DISABLED",
-        resource_type="CAMERA",
-        resource_id=str(camera.id),
-        description=(
-            f"Camera {camera.camera_id} "
-            f"({camera.name}) was disabled."
-        ),
-    )
+    try:
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="CAMERA_DISABLED",
+            resource_type="CAMERA",
+            resource_id=str(camera.id),
+            description=(
+                f"Camera {camera.camera_id} "
+                f"({camera.name}) was disabled."
+            ),
+        )
 
-    db.commit()
-    db.refresh(camera)
+        db.commit()
+        db.refresh(camera)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to disable camera",
+        )
 
     return camera

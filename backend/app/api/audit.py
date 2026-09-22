@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -13,9 +13,18 @@ router = APIRouter(
 )
 
 
-# =========================================================
-# LIST AUDIT LOGS
-# =========================================================
+def serialize_audit_log(log: AuditLog) -> dict:
+    return {
+        "id": log.id,
+        "user_id": log.user_id,
+        "action": log.action,
+        "resource_type": log.resource_type,
+        "resource_id": log.resource_id,
+        "description": log.description,
+        "ip_address": log.ip_address,
+        "created_at": log.created_at,
+    }
+
 
 @router.get("")
 def list_audit_logs(
@@ -29,21 +38,30 @@ def list_audit_logs(
     query = db.query(AuditLog)
 
     if action:
-        query = query.filter(
-            AuditLog.action == action.upper()
-        )
+        normalized_action = action.strip().upper()
+
+        if normalized_action:
+            query = query.filter(
+                AuditLog.action == normalized_action
+            )
 
     if resource_type:
-        query = query.filter(
-            AuditLog.resource_type == resource_type.upper()
-        )
+        normalized_resource_type = resource_type.strip().upper()
+
+        if normalized_resource_type:
+            query = query.filter(
+                AuditLog.resource_type == normalized_resource_type
+            )
 
     if resource_id:
-        query = query.filter(
-            AuditLog.resource_id == resource_id
-        )
+        normalized_resource_id = resource_id.strip()
 
-    if user_id:
+        if normalized_resource_id:
+            query = query.filter(
+                AuditLog.resource_id == normalized_resource_id
+            )
+
+    if user_id is not None:
         query = query.filter(
             AuditLog.user_id == user_id
         )
@@ -56,23 +74,10 @@ def list_audit_logs(
     )
 
     return [
-        {
-            "id": log.id,
-            "user_id": log.user_id,
-            "action": log.action,
-            "resource_type": log.resource_type,
-            "resource_id": log.resource_id,
-            "description": log.description,
-            "ip_address": log.ip_address,
-            "created_at": log.created_at,
-        }
+        serialize_audit_log(log)
         for log in audit_logs
     ]
 
-
-# =========================================================
-# GET SINGLE AUDIT LOG
-# =========================================================
 
 @router.get("/{audit_log_id}")
 def get_audit_log(
@@ -87,20 +92,9 @@ def get_audit_log(
     )
 
     if not audit_log:
-        from fastapi import HTTPException, status
-
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audit log not found",
         )
 
-    return {
-        "id": audit_log.id,
-        "user_id": audit_log.user_id,
-        "action": audit_log.action,
-        "resource_type": audit_log.resource_type,
-        "resource_id": audit_log.resource_id,
-        "description": audit_log.description,
-        "ip_address": audit_log.ip_address,
-        "created_at": audit_log.created_at,
-    }
+    return serialize_audit_log(audit_log)

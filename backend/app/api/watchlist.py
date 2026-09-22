@@ -28,28 +28,41 @@ def create_watchlist_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
+    identifier = watchlist_data.identifier.strip()
+
     existing_entry = (
         db.query(Watchlist)
         .filter(
-            Watchlist.identifier == watchlist_data.identifier,
-            Watchlist.is_active == True,
+            Watchlist.identifier == identifier,
+            Watchlist.is_active.is_(True),
         )
         .first()
     )
 
     if existing_entry:
         raise HTTPException(
-            status_code=409,
-            detail="Active watchlist entry already exists for this identifier",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Active watchlist entry already exists "
+                "for this identifier"
+            ),
         )
 
-    watchlist_entry = Watchlist(
-        **watchlist_data.model_dump()
-    )
+    data = watchlist_data.model_dump()
+    data["identifier"] = identifier
 
-    db.add(watchlist_entry)
-    db.commit()
-    db.refresh(watchlist_entry)
+    watchlist_entry = Watchlist(**data)
+
+    try:
+        db.add(watchlist_entry)
+        db.commit()
+        db.refresh(watchlist_entry)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create watchlist entry",
+        )
 
     return watchlist_entry
 
@@ -69,7 +82,7 @@ def list_watchlist(
     query = db.query(Watchlist)
 
     if search:
-        search_pattern = f"%{search}%"
+        search_pattern = f"%{search.strip()}%"
 
         query = query.filter(
             (Watchlist.identifier.ilike(search_pattern))
@@ -78,22 +91,24 @@ def list_watchlist(
 
     if category:
         query = query.filter(
-            Watchlist.category == category
+            Watchlist.category == category.strip()
         )
 
     if entity_type:
         query = query.filter(
-            Watchlist.entity_type == entity_type
+            Watchlist.entity_type == entity_type.strip()
         )
 
     if active_only:
         query = query.filter(
-            Watchlist.is_active == True
+            Watchlist.is_active.is_(True)
         )
 
-    return query.order_by(
-        Watchlist.created_at.desc()
-    ).all()
+    return (
+        query
+        .order_by(Watchlist.created_at.desc())
+        .all()
+    )
 
 
 @router.get(
@@ -113,7 +128,7 @@ def get_watchlist_entry(
 
     if not watchlist_entry:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Watchlist entry not found",
         )
 
@@ -138,7 +153,7 @@ def update_watchlist_entry(
 
     if not watchlist_entry:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Watchlist entry not found",
         )
 
@@ -146,11 +161,48 @@ def update_watchlist_entry(
         exclude_unset=True
     )
 
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update",
+        )
+
+    if "identifier" in update_data:
+        identifier = update_data["identifier"].strip()
+
+        duplicate_entry = (
+            db.query(Watchlist)
+            .filter(
+                Watchlist.identifier == identifier,
+                Watchlist.is_active.is_(True),
+                Watchlist.id != watchlist_entry.id,
+            )
+            .first()
+        )
+
+        if duplicate_entry:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Active watchlist entry already exists "
+                    "for this identifier"
+                ),
+            )
+
+        update_data["identifier"] = identifier
+
     for field, value in update_data.items():
         setattr(watchlist_entry, field, value)
 
-    db.commit()
-    db.refresh(watchlist_entry)
+    try:
+        db.commit()
+        db.refresh(watchlist_entry)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update watchlist entry",
+        )
 
     return watchlist_entry
 
@@ -172,13 +224,26 @@ def disable_watchlist_entry(
 
     if not watchlist_entry:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Watchlist entry not found",
+        )
+
+    if not watchlist_entry.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Watchlist entry is already disabled",
         )
 
     watchlist_entry.is_active = False
 
-    db.commit()
-    db.refresh(watchlist_entry)
+    try:
+        db.commit()
+        db.refresh(watchlist_entry)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to disable watchlist entry",
+        )
 
     return watchlist_entry

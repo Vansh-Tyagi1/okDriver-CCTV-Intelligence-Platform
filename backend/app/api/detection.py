@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.websocket import manager
 from app.core.security import get_current_user
 from app.db.database import get_db
 from app.models.alert import Alert
@@ -11,7 +12,6 @@ from app.models.detection import Detection
 from app.models.user import User
 from app.models.watchlist import Watchlist
 from app.schemas.detection import DetectionCreate, DetectionResponse
-from app.api.websocket import manager
 
 
 router = APIRouter(
@@ -36,14 +36,17 @@ async def create_detection(
 
     camera = (
         db.query(Camera)
-        .filter(Camera.id == detection_data.camera_id)
+        .filter(
+            Camera.id == detection_data.camera_id,
+            Camera.is_active.is_(True),
+        )
         .first()
     )
 
     if not camera:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Camera not found",
+            detail="Active camera not found",
         )
 
     # --------------------------------------------------
@@ -56,7 +59,7 @@ async def create_detection(
     )
 
     detection = Detection(
-        camera_id=detection_data.camera_id,
+        camera_id=camera.id,
         event_type=detection_data.event_type,
         vehicle_number=detection_data.vehicle_number,
         confidence=detection_data.confidence,
@@ -66,32 +69,33 @@ async def create_detection(
         event_metadata=detection_data.event_metadata,
     )
 
-    db.add(detection)
-    db.commit()
-    db.refresh(detection)
+    try:
+        db.add(detection)
+        db.flush()
 
-    # --------------------------------------------------
-    # WATCHLIST MATCHING
-    # --------------------------------------------------
+        # --------------------------------------------------
+        # WATCHLIST MATCHING
+        # --------------------------------------------------
 
-    if detection.vehicle_number:
+        watchlist_entry = None
 
-        watchlist_entry = (
-            db.query(Watchlist)
-            .filter(
-                Watchlist.identifier
-                == detection.vehicle_number,
-                Watchlist.is_active == True,
+        if detection.vehicle_number:
+            watchlist_entry = (
+                db.query(Watchlist)
+                .filter(
+                    Watchlist.identifier == detection.vehicle_number,
+                    Watchlist.is_active.is_(True),
+                )
+                .first()
             )
-            .first()
-        )
 
         # --------------------------------------------------
         # WATCHLIST MATCH FOUND
         # --------------------------------------------------
 
-        if watchlist_entry:
+        alert = None
 
+        if watchlist_entry:
             alert = Alert(
                 detection_id=detection.id,
                 watchlist_id=watchlist_entry.id,
@@ -109,36 +113,44 @@ async def create_detection(
             )
 
             db.add(alert)
-            db.commit()
+
+        db.commit()
+        db.refresh(detection)
+
+        if alert:
             db.refresh(alert)
 
-            # --------------------------------------------------
-            # REAL-TIME WEBSOCKET ALERT
-            # --------------------------------------------------
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process detection",
+        )
 
-            await manager.broadcast(
-                {
-                    "type": "WATCHLIST_ALERT",
-                    "alert": {
-                        "id": alert.id,
-                        "detection_id": alert.detection_id,
-                        "watchlist_id": alert.watchlist_id,
-                        "camera_id": alert.camera_id,
-                        "matched_identifier": (
-                            alert.matched_identifier
-                        ),
-                        "confidence": alert.confidence,
-                        "latitude": alert.latitude,
-                        "longitude": alert.longitude,
-                        "severity": alert.severity,
-                        "status": alert.status,
-                        "message": alert.message,
-                        "created_at": (
-                            alert.created_at.isoformat()
-                        ),
-                    },
-                }
-            )
+    # --------------------------------------------------
+    # REAL-TIME WEBSOCKET ALERT
+    # --------------------------------------------------
+
+    if alert:
+        await manager.broadcast(
+            {
+                "type": "WATCHLIST_ALERT",
+                "alert": {
+                    "id": alert.id,
+                    "detection_id": alert.detection_id,
+                    "watchlist_id": alert.watchlist_id,
+                    "camera_id": alert.camera_id,
+                    "matched_identifier": alert.matched_identifier,
+                    "confidence": alert.confidence,
+                    "latitude": alert.latitude,
+                    "longitude": alert.longitude,
+                    "severity": alert.severity,
+                    "status": alert.status,
+                    "message": alert.message,
+                    "created_at": alert.created_at.isoformat(),
+                },
+            }
+        )
 
     return detection
 
@@ -156,7 +168,7 @@ def list_detections(
 ):
     query = db.query(Detection)
 
-    if camera_id:
+    if camera_id is not None:
         query = query.filter(
             Detection.camera_id == camera_id
         )
@@ -164,7 +176,7 @@ def list_detections(
     if vehicle_number:
         query = query.filter(
             Detection.vehicle_number.ilike(
-                f"%{vehicle_number}%"
+                f"%{vehicle_number.strip()}%"
             )
         )
 

@@ -2,36 +2,74 @@
 
 A full-stack prototype for centralized CCTV monitoring,
 vehicle/ANPR-style analytics, watchlist correlation, real-time alerting,
-GIS visualization, camera health monitoring, vehicle movement search,
+GIS visualization, camera health monitoring, vehicle movement tracking,
 and auditable security operations.
 
-> **Prototype status:** The application is operational locally with
-> FastAPI, PostgreSQL, React/Vite, simulated camera sources, simulated
-> detection events, WebSocket alerts, Leaflet GIS, JWT authentication,
-> RBAC, audit logging, and camera health monitoring.
+> **Prototype Status:** Operational locally with FastAPI, PostgreSQL,
+> React/Vite, simulated camera sources, simulated detection events,
+> WebSocket alerts, Leaflet GIS, JWT authentication, RBAC, audit
+> logging, and camera health monitoring.
 
 ------------------------------------------------------------------------
 
 ## 1. Project Overview
 
-The platform demonstrates an end-to-end CCTV intelligence workflow:
+The platform demonstrates an end-to-end CCTV intelligence workflow from
+camera onboarding to detection processing, watchlist correlation,
+real-time alerting, investigation, and auditability.
 
-1.  Administrators onboard camera sources.
-2.  Camera metadata is available in a central registry and GIS map.
-3.  Simulated camera sources provide representative monitoring feeds.
-4.  Analytics events can be submitted through the detection API.
-5.  Detection events are validated and persisted in PostgreSQL.
-6.  Detected identifiers are checked against the watchlist.
-7.  A matching watchlist record creates an alert.
-8.  Alerts are pushed to connected operators through WebSocket.
-9.  Operators can acknowledge or resolve alerts.
-10. Vehicles/entities can be searched and their movement history
-    reviewed.
-11. Camera heartbeat and health status are continuously evaluated.
-12. Important operational actions are written to audit logs.
+### End-to-End Workflow
 
-This implements the core prototype flow requested in the hiring
-assignment.
+1.  **Camera Onboarding** --- Administrators onboard camera sources
+    through the central camera registry.
+2.  **Camera Registry & GIS** --- Camera metadata is maintained
+    centrally and visualized on the GIS map.
+3.  **Live Monitoring** --- Simulated camera sources provide
+    representative monitoring feeds.
+4.  **Detection Ingestion** --- Analytics events are submitted through
+    the detection API.
+5.  **Event Persistence** --- Detection events are validated and
+    persisted in PostgreSQL.
+6.  **Watchlist Correlation** --- Detected identifiers are checked
+    against active watchlist records.
+7.  **Alert Generation** --- A matching watchlist record automatically
+    creates a security alert.
+8.  **Real-Time Delivery** --- Alerts are pushed to connected operators
+    through WebSocket.
+9.  **Alert Management** --- Operators can acknowledge or resolve
+    alerts.
+10. **Vehicle Intelligence** --- Vehicles/entities can be searched and
+    their movement history reviewed.
+11. **Camera Health** --- Camera heartbeat and health status are
+    continuously evaluated.
+12. **Auditability** --- Important operational actions are recorded in
+    audit logs.
+
+### Core Flow
+
+``` text
+Camera Sources
+      ↓
+Camera Registry + GIS
+      ↓
+Monitoring / Detection Events
+      ↓
+Detection API
+      ↓
+PostgreSQL
+      ↓
+Watchlist Matching
+      ↓
+Alert Generation
+      ↓
+WebSocket
+      ↓
+Operator Dashboard
+      ↓
+Acknowledge / Resolve
+      ↓
+Audit Logs
+```
 
 ------------------------------------------------------------------------
 
@@ -39,64 +77,62 @@ assignment.
 
 ### Camera Registry
 
--   Add cameras
--   Edit camera metadata
--   Disable cameras
--   Search and filter cameras
+Centralized camera onboarding and lifecycle management.
+
+-   Add, edit, and disable cameras
+-   Search and filtering
 -   Department and zone metadata
 -   Latitude/longitude support
 -   Source protocol and stream endpoint reference
--   Camera status
--   Last heartbeat
+-   Camera status and last heartbeat
 -   Storage metadata
--   Camera audit history
+-   Auditable camera operations
 
 ### Live / Near-Live Monitoring
 
 -   Multiple logical camera sources
--   Simulated camera scenes for development/demo
+-   Simulated camera scenes for development and demonstration
 -   Camera status indicators
--   Unified monitoring interface
--   Architecture prepared for RTSP/ONVIF/vendor adapters
+-   Centralized monitoring interface
+-   Architecture prepared for RTSP, ONVIF, and vendor-specific adapters
+-   Persistent event history
 
 ### Video Analytics / Detection
 
 -   Detection event API
--   ANPR/vehicle-style detection events
+-   ANPR / vehicle-style detection events
 -   Vehicle identifier
 -   Confidence score
 -   Vehicle type
 -   Bounding box
--   Event type
--   Event timestamp
--   JSON metadata
--   Persistent event history
+-   Event type and timestamp
+-   JSON event metadata
+-   PostgreSQL persistence
 
 ### Watchlist
 
--   Add watchlist records
--   Edit records
--   Disable records
--   Search/filter
+-   Add, edit, and disable watchlist records
+-   Search and filtering
 -   Entity type
 -   Identifier
 -   Category
 -   Description
--   Synthetic testing records
+-   Synthetic records for testing
+-   Automatic correlation with detection events
 
 ### Real-Time Alerting
 
 -   Automatic watchlist correlation
 -   Active alert creation
--   Severity/status
+-   Severity and status management
 -   Alert acknowledgement
 -   Alert resolution
 -   WebSocket alert delivery
 -   Persistent alert history
 
-### GIS / Vehicle Intelligence
+### GIS & Vehicle Intelligence
 
--   Leaflet camera map
+-   Leaflet-based camera map
 -   Camera status visualization
 -   Alert-aware markers
 -   Vehicle/entity search
@@ -106,9 +142,7 @@ assignment.
 ### Camera Health
 
 -   Heartbeat processing
--   ONLINE status
--   DEGRADED status
--   OFFLINE status
+-   `ONLINE`, `DEGRADED`, and `OFFLINE` states
 -   Automatic simulator heartbeat
 -   Dashboard health refresh
 
@@ -120,7 +154,7 @@ assignment.
 -   Password hashing
 -   Input validation
 -   Environment-based secrets
--   Audit logs
+-   Audit logging
 -   API rate limiting
 -   CORS configuration
 
@@ -128,19 +162,64 @@ assignment.
 
 ## 3. Technology Stack
 
-  Layer               Technology
-  ------------------- --------------------------------------------------
-  Frontend            React + Vite
-  Backend             FastAPI + Python
-  Database            PostgreSQL
-  ORM                 SQLAlchemy
-  Authentication      JWT
-  Real-time           WebSocket
-  GIS                 Leaflet
-  API Documentation   FastAPI OpenAPI / Swagger
-  Video Prototype     Simulated camera sources
-  Containerization    Docker + Docker Compose
-  Future Messaging    Redis / Kafka / RabbitMQ compatible architecture
+  -----------------------------------------------------------------------
+  Layer                   Technology              Purpose
+  ----------------------- ----------------------- -----------------------
+  Frontend                React + Vite            Operations dashboard
+                                                  and monitoring UI
+
+  Backend                 FastAPI + Python        REST APIs,
+                                                  authentication,
+                                                  analytics and alert
+                                                  workflows
+
+  Database                PostgreSQL              Persistent operational
+                                                  data storage
+
+  ORM                     SQLAlchemy              Database models and
+                                                  query layer
+
+  Authentication          JWT                     Secure API
+                                                  authentication and
+                                                  session handling
+
+  Authorization           RBAC                    Role-based access
+                                                  control
+
+  Real-time               WebSocket               Real-time alerts and
+                                                  event updates
+
+  GIS                     Leaflet                 Camera locations and
+                                                  vehicle movement
+                                                  visualization
+
+  API Documentation       FastAPI OpenAPI /       Interactive API
+                          Swagger                 documentation
+
+  Video Prototype         Simulated Camera        Representative camera
+                          Sources                 feeds
+
+  Containerization        Docker + Docker Compose Containerized
+                                                  deployment architecture
+
+  Rate Limiting           SlowAPI                 API abuse protection
+
+  Future Messaging        Redis / Kafka /         Scalable event/message
+                          RabbitMQ-compatible     processing
+                          architecture
+  -----------------------------------------------------------------------
+
+### Core Stack
+
+``` text
+React + Vite
+      ↓
+FastAPI + Python
+      ↓
+SQLAlchemy
+      ↓
+PostgreSQL
+```
 
 ------------------------------------------------------------------------
 
@@ -148,65 +227,58 @@ assignment.
 
 ``` text
 okDrivers/
-│
 ├── backend/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── alert.py
 │   │   │   ├── audit.py
+│   │   │   ├── auth.py
 │   │   │   ├── camera_health.py
 │   │   │   ├── cameras.py
 │   │   │   ├── detection.py
 │   │   │   ├── vehicle.py
 │   │   │   ├── watchlist.py
-│   │   │   ├── websocket.py
-│   │   │   └── auth.py
-│   │   │
-│   │   ├── core/
-│   │   │   └── security.py
-│   │   │
+│   │   │   └── websocket.py
+│   │   ├── core/security.py
 │   │   ├── db/
+│   │   │   ├── base.py
 │   │   │   └── database.py
-│   │   │
 │   │   ├── models/
-│   │   │   ├── user.py
+│   │   │   ├── alert.py
+│   │   │   ├── audit_log.py
 │   │   │   ├── camera.py
 │   │   │   ├── detection.py
-│   │   │   ├── watchlist.py
-│   │   │   ├── alert.py
-│   │   │   └── audit_log.py
-│   │   │
+│   │   │   ├── user.py
+│   │   │   └── watchlist.py
 │   │   └── main.py
-│   │
-│   ├── Dockerfile
 │   ├── .dockerignore
+│   ├── .env.example
+│   ├── Dockerfile
 │   ├── requirements.txt
-│   └── .env
-│
+│   └── admin.py
 ├── frontend/
 │   ├── src/
+│   │   ├── components/
 │   │   ├── App.jsx
-│   │   ├── App.css
-│   │   ├── Cameras.jsx
-│   │   ├── Watchlist.jsx
-│   │   ├── Alerts.jsx
-│   │   ├── EventHistory.jsx
-│   │   ├── VehicleSearch.jsx
-│   │   └── ...
-│   │
+│   │   └── App.css
 │   ├── Dockerfile
-│   ├── .dockerignore
-│   └── package.json
-│
+│   ├── package.json
+│   └── vite.config.js
 ├── docker-compose.yml
-└── README.md
+├── README.md
+├── SCALABILITY.md
+└── .gitignore
 ```
+
+> **Security note:** `backend/.env` is intentionally excluded from
+> source control. Use `backend/.env.example` as the configuration
+> template.
 
 ------------------------------------------------------------------------
 
 ## 5. Prerequisites
 
-For local development:
+### Local Development
 
 -   Python 3.12+
 -   Node.js 22+
@@ -214,7 +286,7 @@ For local development:
 -   PostgreSQL 18+
 -   Git
 
-For container deployment:
+### Container Deployment
 
 -   Docker Desktop / Docker Engine
 -   Docker Compose
@@ -229,26 +301,17 @@ Open a terminal in:
 okDrivers/backend
 ```
 
-Create/activate the virtual environment:
-
 ### Windows PowerShell
 
 ``` powershell
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-``` powershell
+.env\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
 ------------------------------------------------------------------------
 
 ## 7. Environment Variables
-
-The backend uses environment-based configuration.
 
 Create:
 
@@ -264,23 +327,14 @@ JWT_SECRET=<LONG_RANDOM_SECRET>
 JWT_ALGORITHM=HS256
 ```
 
-Do **not** commit real passwords, JWT secrets, API keys, private keys,
-or production credentials.
-
-The repository `.gitignore` excludes local environment files and virtual
-environments.
+Do **not** commit passwords, JWT secrets, API keys, private keys, or
+production credentials.
 
 ------------------------------------------------------------------------
 
 ## 8. PostgreSQL Setup
 
-Create a PostgreSQL database named:
-
-``` text
-okdriver
-```
-
-Example:
+Create the database:
 
 ``` sql
 CREATE DATABASE okdriver;
@@ -288,9 +342,7 @@ CREATE DATABASE okdriver;
 
 Update `backend/.env` with the correct connection string.
 
-The application uses SQLAlchemy with PostgreSQL.
-
-The current schema contains the core entities for:
+Core entities:
 
 -   Users
 -   Cameras
@@ -299,23 +351,13 @@ The current schema contains the core entities for:
 -   Alerts
 -   Audit Logs
 
-Supporting health and operational entities can be extended as the
-platform moves toward production deployment.
-
 ------------------------------------------------------------------------
 
 ## 9. Start Backend
 
-From:
-
-``` text
-okDrivers/backend
-```
-
-run:
-
 ``` powershell
-.\venv\Scripts\Activate.ps1
+cd backend
+.env\Scripts\Activate.ps1
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -331,7 +373,7 @@ Health check:
 http://127.0.0.1:8000/api/health
 ```
 
-Expected response:
+Expected:
 
 ``` json
 {
@@ -344,8 +386,6 @@ Expected response:
 
 ## 10. API Documentation
 
-FastAPI automatically exposes OpenAPI documentation.
-
 Swagger UI:
 
 ``` text
@@ -357,6 +397,9 @@ ReDoc:
 ``` text
 http://127.0.0.1:8000/redoc
 ```
+
+FastAPI OpenAPI documentation can be used to authenticate, inspect
+schemas, and test the backend APIs.
 
 ------------------------------------------------------------------------
 
@@ -379,7 +422,7 @@ PUT    /api/cameras/{id}
 PATCH  /api/cameras/{id}/disable
 ```
 
-Supported camera filters include search, status, department and zone.
+Filters include search, status, department, and zone.
 
 ### Detection / Analytics
 
@@ -389,7 +432,7 @@ GET  /api/detections
 GET  /api/detections/{id}
 ```
 
-A detection can contain:
+Example:
 
 ``` json
 {
@@ -432,9 +475,6 @@ PATCH /api/alerts/{id}/status
 GET /api/vehicles/search
 ```
 
-The vehicle workflow returns matching detection history and movement
-information.
-
 ### Camera Health
 
 ``` text
@@ -455,28 +495,16 @@ GET /api/audit-logs
 ws://127.0.0.1:8000/ws/alerts
 ```
 
-The WebSocket is used for real-time alert delivery without requiring a
+WebSocket provides real-time alert delivery without requiring a
 dashboard refresh.
 
 ------------------------------------------------------------------------
 
 ## 12. Start Frontend
 
-Open another terminal in:
-
-``` text
-okDrivers/frontend
-```
-
-Install packages:
-
 ``` powershell
+cd frontend
 npm install
-```
-
-Start development server:
-
-``` powershell
 npm run dev
 ```
 
@@ -486,7 +514,7 @@ Frontend:
 http://localhost:5173
 ```
 
-Build production assets:
+Production build:
 
 ``` powershell
 npm run build
@@ -518,29 +546,29 @@ Authorization: Bearer <token>
 Camera / Analytics Simulator
             │
             ▼
-     Detection API
+       Detection API
             │
             ▼
-    Validate Detection
+     Validate Detection
             │
             ▼
-       PostgreSQL
+        PostgreSQL
             │
             ▼
-    Watchlist Matching
+      Watchlist Matching
             │
-      ┌─────┴─────┐
-      │           │
-    No Match    Match
-      │           │
-      ▼           ▼
-   Persist     Create Alert
+       ┌────┴────┐
+       │         │
+    No Match   Match
+       │         │
+       ▼         ▼
+    Persist   Create Alert
                   │
                   ▼
-             WebSocket
+              WebSocket
                   │
                   ▼
-          Operator Dashboard
+           Operator Dashboard
 ```
 
 This is the core real-time intelligence workflow demonstrated by the
@@ -550,37 +578,30 @@ prototype.
 
 ## 15. Camera Health Flow
 
-Simulator cameras send/update heartbeat information.
-
-Current health rules:
+Simulator cameras update heartbeat information.
 
 ``` text
-<= 30 seconds    ONLINE
-31–90 seconds    DEGRADED
-> 90 seconds     OFFLINE
+≤ 30 seconds      ONLINE
+31–90 seconds     DEGRADED
+> 90 seconds      OFFLINE
 Missing heartbeat OFFLINE
-Inactive camera  OFFLINE
+Inactive camera   OFFLINE
 ```
 
 The simulator heartbeat loop updates active simulator cameras every 10
-seconds.
-
-The frontend refreshes camera health periodically so the operational
-dashboard reflects current state.
+seconds. The frontend periodically refreshes camera health so the
+dashboard reflects the current state.
 
 ------------------------------------------------------------------------
 
 ## 16. Audit Logging
 
-Important actions generate audit records.
-
-Examples include:
+Important operational actions generate audit records.
 
 ``` text
 CAMERA_CREATED
 CAMERA_UPDATED
 CAMERA_DISABLED
-
 ALERT_ACKNOWLEDGED
 ALERT_RESOLVED
 ALERT_STATUS_UPDATED
@@ -616,7 +637,7 @@ events and plotted chronologically across cameras.
 
 ## 18. Docker Deployment
 
-The repository contains:
+Included:
 
 ``` text
 backend/Dockerfile
@@ -624,95 +645,82 @@ frontend/Dockerfile
 docker-compose.yml
 ```
 
-The Compose architecture contains:
+Architecture:
 
 ``` text
 PostgreSQL
-    │
-    ▼
+     │
+     ▼
 FastAPI Backend
-    │
-    ▼
-React/Nginx Frontend
+     │
+     ▼
+React / Nginx Frontend
 ```
 
-The PostgreSQL data is stored in the named volume:
+PostgreSQL data uses:
 
 ``` text
 okdriver_postgres_data
 ```
 
-### Compose configuration
-
-From the project root:
+Validate:
 
 ``` powershell
 docker compose config
 ```
 
-To start the stack when Docker Engine is available:
+Start when Docker Engine is available:
 
 ``` powershell
 docker compose up --build
 ```
 
-### Current local environment note
-
-Docker Desktop is installed and the Compose configuration validates
-successfully. The current development machine has a Docker Desktop
-startup dependency on hardware virtualization/WSL2 configuration.
-Therefore local development currently uses the native PostgreSQL +
-Python + Vite workflow.
-
-This does not change the container deployment architecture.
+> **Local environment note:** Docker Desktop and Compose configuration
+> are included. The current development machine requires hardware
+> virtualization / WSL2 configuration before Docker Desktop can start
+> normally. Native PostgreSQL + Python/FastAPI + React/Vite remains the
+> current local development workflow.
 
 ------------------------------------------------------------------------
 
 # 19. Production / 80,000-Camera Scalability Plan
 
-The prototype is intentionally small, but the architecture is designed
-so that video ingestion, analytics, APIs and storage can be separated as
-the deployment grows.
+The prototype is intentionally small, while the architecture separates
+video ingestion, analytics, APIs, real-time processing, and storage for
+future scale.
 
-## Target Architecture
+### Target Architecture
 
 ``` text
-                         ┌─────────────────────┐
-                         │   Global / Central   │
-                         │  Control Plane       │
-                         └──────────┬──────────┘
-                                    │
-                         Load Balancer / API Gateway
-                                    │
-             ┌──────────────────────┼──────────────────────┐
-             │                      │                      │
-             ▼                      ▼                      ▼
-       Region North           Region West            Region South
-             │                      │                      │
-        Edge Gateways          Edge Gateways          Edge Gateways
-             │                      │                      │
-       Camera Clusters        Camera Clusters        Camera Clusters
-             │                      │                      │
-             ▼                      ▼                      ▼
-       GPU Analytics           GPU Analytics           GPU Analytics
-             │                      │                      │
-             └──────────────────────┼──────────────────────┘
-                                    ▼
-                          Central Event Platform
-                                    │
-                  ┌─────────────────┼─────────────────┐
-                  ▼                 ▼                 ▼
-             PostgreSQL          Redis/Queue      Object Storage
-             / Read Replicas     Event Bus        Hot/Warm/Cold
+                    ┌─────────────────────┐
+                    │ Global / Central    │
+                    │ Control Plane       │
+                    └──────────┬──────────┘
+                               │
+                    Load Balancer / API Gateway
+                               │
+          ┌────────────────────┼────────────────────┐
+          ▼                    ▼                    ▼
+     Region North         Region West         Region South
+          │                    │                    │
+     Edge Gateways        Edge Gateways        Edge Gateways
+          │                    │                    │
+     Camera Clusters      Camera Clusters      Camera Clusters
+          │                    │                    │
+          ▼                    ▼                    ▼
+     GPU Analytics        GPU Analytics        GPU Analytics
+          │                    │                    │
+          └────────────────────┼────────────────────┘
+                               ▼
+                    Central Event Platform
+                               │
+               ┌───────────────┼───────────────┐
+               ▼               ▼               ▼
+          PostgreSQL       Redis / Queue    Object Storage
+          / Read Replicas  Event Bus        Hot/Warm/Cold
 ```
 
-## Central, Regional and Edge Processing
-
-### Edge
-
-Place lightweight gateways close to camera clusters.
-
-Responsibilities:
+### Edge Processing
 
 -   Camera connectivity
 -   Protocol adaptation
@@ -723,9 +731,7 @@ Responsibilities:
 -   Local buffering
 -   Basic event filtering
 
-### Regional
-
-Regional processing clusters handle:
+### Regional Processing
 
 -   Video analytics
 -   GPU inference
@@ -735,9 +741,7 @@ Regional processing clusters handle:
 -   Regional caching
 -   Temporary evidence storage
 
-### Central
-
-The central control plane handles:
+### Central Processing
 
 -   User management
 -   Camera registry
@@ -749,37 +753,25 @@ The central control plane handles:
 -   Configuration
 -   Global dashboards
 
-------------------------------------------------------------------------
+### Horizontal Scaling
 
-## Horizontal Scaling
-
-The FastAPI application should remain stateless wherever possible.
-
-Multiple backend instances can run behind a load balancer:
+FastAPI should remain stateless wherever possible.
 
 ``` text
-                    Load Balancer
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-       API-01          API-02         API-N
-          │              │              │
-          └──────────────┼──────────────┘
-                         ▼
-                  PostgreSQL / Redis
+                 Load Balancer
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+       API-01       API-02       API-N
+          │           │           │
+          └───────────┼───────────┘
+                      ▼
+                 PostgreSQL / Redis
 ```
 
-WebSocket connections can be distributed across instances using a shared
-real-time broker such as Redis Pub/Sub.
+Shared Redis Pub/Sub can support distributed WebSocket/event delivery.
 
-------------------------------------------------------------------------
-
-## Message Queue / Event Bus
-
-At larger scale, detection events should not depend on synchronous API
-processing.
-
-Recommended flow:
+### Event Bus
 
 ``` text
 Camera / Edge
@@ -806,26 +798,19 @@ Benefits:
 -   Event durability
 -   Decoupled services
 
-------------------------------------------------------------------------
-
-## Database Scaling
-
-The current PostgreSQL design already uses indexes for operational
-queries.
+### Database Scaling
 
 At production scale:
 
--   Add read replicas
--   Partition high-volume detection tables by time/region
--   Use composite indexes based on query patterns
--   Separate hot operational data from historical data
--   Use connection pooling
--   Archive older events
--   Use regional databases where appropriate
--   Keep the central database focused on metadata and cross-region
-    indexes
+-   Read replicas
+-   Time/region partitioning
+-   Composite indexes
+-   Hot vs historical data separation
+-   Connection pooling
+-   Event archival
+-   Regional databases where appropriate
 
-Potential high-volume partitioning strategy:
+Example:
 
 ``` text
 detections_2026_09
@@ -834,34 +819,19 @@ detections_2026_11
 ...
 ```
 
-------------------------------------------------------------------------
+### Video Bandwidth
 
-## Video Bandwidth Strategy
+-   Process video near the source
+-   Send metadata/events centrally
+-   Use adaptive bitrate streams
+-   Use lower-resolution monitoring streams
+-   Request high-resolution footage when required
+-   Keep evidence clips near their source region
+-   Use object storage for longer retention
 
-Streaming every camera continuously to a central data center is
-expensive.
+### GPU Strategy
 
-Recommended approach:
-
--   Process video near the source.
--   Send metadata/events centrally.
--   Use adaptive bitrate streams.
--   Use lower-resolution streams for monitoring.
--   Request high-resolution footage only when required.
--   Keep evidence clips near the region where they were generated.
--   Use object storage for longer retention.
-
-This separates continuous analytics traffic from occasional
-investigation traffic.
-
-------------------------------------------------------------------------
-
-## GPU / Accelerator Strategy
-
-GPU resources should be concentrated in analytics workers rather than
-API servers.
-
-Potential GPU workloads:
+GPU resources should be concentrated in analytics workers for:
 
 -   ANPR
 -   Object detection
@@ -869,53 +839,24 @@ Potential GPU workloads:
 -   Vehicle classification
 -   Re-identification
 
-Use worker pools so GPU capacity can scale independently from:
+GPU workers can scale independently from API, WebSocket, database, and
+frontend servers.
 
--   API servers
--   WebSocket servers
--   Database servers
--   Frontend servers
+### Storage Tiers
 
-------------------------------------------------------------------------
+**Hot** - Active alerts - Recent detections - Current camera state -
+Recent metadata
 
-## Storage Strategy
+**Warm** - Recent video clips - Evidence snapshots - Historical
+detections
 
-### Hot Storage
+**Cold** - Archived footage - Historical evidence - Compliance records
 
-Recent operational data:
+### Observability
 
--   Active alerts
--   Recent detections
--   Current camera state
--   Recent metadata
+Monitor:
 
-### Warm Storage
-
-Investigation data:
-
--   Recent video clips
--   Evidence snapshots
--   Historical detections
-
-### Cold Storage
-
-Long-term retention:
-
--   Archived footage
--   Historical evidence
--   Compliance records
-
-Object storage such as S3-compatible storage can be used for large video
-objects.
-
-------------------------------------------------------------------------
-
-## Monitoring and Observability
-
-Production deployment should monitor:
-
--   Camera heartbeat
--   Camera connectivity
+-   Camera heartbeat/connectivity
 -   Detection throughput
 -   Queue depth
 -   API latency
@@ -926,40 +867,25 @@ Production deployment should monitor:
 -   Error rate
 -   Alert delivery latency
 
-Recommended future stack:
+Future stack:
 
 ``` text
-Prometheus
-    +
-Grafana
-    +
-Centralized Logs
-    +
-Distributed Tracing
+Prometheus + Grafana + Centralized Logs + Distributed Tracing
 ```
 
-------------------------------------------------------------------------
-
-## High Availability and Disaster Recovery
-
-Recommended production design:
+### High Availability / Disaster Recovery
 
 -   Multiple backend instances
 -   Load balancers
 -   PostgreSQL primary + replicas
--   Automated database backups
+-   Automated backups
 -   Multi-zone deployment
 -   Regional failover
 -   Queue replication
 -   Object storage replication
--   Recovery Point Objective (RPO) and Recovery Time Objective (RTO)
-    defined by business requirements
+-   Business-defined RPO/RTO
 
-------------------------------------------------------------------------
-
-## Cybersecurity
-
-Production deployment should use:
+### Cybersecurity
 
 -   HTTPS/TLS
 -   Private camera networks
@@ -974,7 +900,7 @@ Production deployment should use:
 -   Encrypted storage where required
 -   No credentials in source control
 -   Restricted database access
--   Camera credentials stored outside application source code
+-   Camera credentials outside application source code
 
 ------------------------------------------------------------------------
 
@@ -983,81 +909,45 @@ Production deployment should use:
 This is a prototype and intentionally does not attempt to reproduce a
 full production VMS.
 
-Current limitations include:
-
-1.  Camera feeds are represented with simulator/representative sources
-    rather than a production fleet of RTSP cameras.
+1.  Camera feeds use simulator/representative sources rather than a
+    production fleet of RTSP cameras.
 2.  AI analytics are represented through an event interface/simulator;
     no model training pipeline is included.
-3.  Docker deployment files are present, but the current development
-    machine requires hardware virtualization/WSL2 configuration before
-    Docker Desktop can start normally.
-4.  Redis/Kafka is designed as a future scaling component rather than
-    required for the current local prototype.
+3.  Docker files are included, but the current development machine
+    requires hardware virtualization/WSL2 configuration before Docker
+    Desktop can start normally.
+4.  Redis/Kafka is a future scaling component rather than a requirement
+    for the current local prototype.
 5.  Production-grade multi-region deployment is documented
-    architecturally but not operated in this prototype.
+    architecturally but not operated locally.
 6.  Long-term video retention/object storage is a production extension.
 7.  High-availability and disaster-recovery infrastructure is documented
     but not provisioned locally.
 
-These limitations are deliberate and keep the prototype focused on
-demonstrating the end-to-end application architecture and workflow.
+These limitations keep the prototype focused on demonstrating the
+end-to-end application architecture and workflow.
 
 ------------------------------------------------------------------------
 
 # 21. Demo Flow
 
-A recommended 3--5 minute demonstration:
+Recommended 3--5 minute demonstration:
 
-### 1. Login
-
-Show JWT authentication and the operational dashboard.
-
-### 2. Camera Registry
-
-Show:
-
--   Multiple cameras
--   Camera metadata
--   Status
--   GIS location
-
-### 3. Live Monitoring
-
-Show the representative camera feeds.
-
-### 4. Detection
-
-Submit or generate a detection event.
-
-### 5. Watchlist Match
-
-Use the synthetic watchlist identifier and generate a matching
-detection.
-
-### 6. Real-Time Alert
-
-Show the alert appearing through WebSocket without a page refresh.
-
-### 7. Alert Management
-
-Acknowledge and resolve the alert.
-
-### 8. Vehicle Search
-
-Search the detected identifier and show movement history.
-
-### 9. Event History
-
-Show the persisted detection history.
-
-### 10. Audit Logs
-
-Show auditable operator actions.
-
-### 11. Architecture
-
-Briefly explain:
+1.  **Login** --- Show JWT authentication and the operational dashboard.
+2.  **Camera Registry** --- Show multiple cameras, metadata, status, and
+    GIS location.
+3.  **Live Monitoring** --- Show representative camera feeds.
+4.  **Detection** --- Submit or generate a detection event.
+5.  **Watchlist Match** --- Generate a detection matching the synthetic
+    watchlist identifier.
+6.  **Real-Time Alert** --- Show the WebSocket alert without refreshing
+    the page.
+7.  **Alert Management** --- Acknowledge and resolve the alert.
+8.  **Vehicle Search** --- Search the identifier and show movement
+    history.
+9.  **Event History** --- Show persisted detection history.
+10. **Audit Logs** --- Show auditable operator actions.
+11. **Architecture** --- Explain the main processing pipeline.
 
 ``` text
 Camera
@@ -1085,7 +975,7 @@ React Dashboard
 
 ``` powershell
 cd backend
-.\venv\Scripts\Activate.ps1
+.env\Scripts\Activate.ps1
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -1097,7 +987,7 @@ npm install
 npm run dev
 ```
 
-### Frontend production build
+### Production Build
 
 ``` powershell
 npm run build
@@ -1126,44 +1016,40 @@ The prototype favors modular separation between:
 -   Audit logging
 -   Real-time communication
 
-This allows the current prototype to evolve into independently scalable
-services without requiring a complete rewrite of the operational
-workflow.
+This allows the prototype to evolve into independently scalable services
+without requiring a complete rewrite of the operational workflow.
 
 ------------------------------------------------------------------------
 
 # 24. Assignment Alignment
 
-The implementation covers the major requested prototype areas:
-
-  Requirement                        Prototype
-  ---------------------------------- ------------------------------------
-  Multiple camera sources            Implemented with simulator sources
-  Camera registry                    Implemented
-  Search/filter                      Implemented
-  GIS map                            Implemented with Leaflet
-  Camera health                      Implemented
-  Detection event API                Implemented
-  Detection persistence              Implemented
-  Watchlist                          Implemented
-  Watchlist matching                 Implemented
-  Real-time alerts                   Implemented with WebSocket
-  Alert acknowledgement/resolution   Implemented
-  Vehicle/entity search              Implemented
-  Movement history                   Implemented
-  Event history                      Implemented
-  Audit logs                         Implemented
-  JWT authentication                 Implemented
-  RBAC                               Implemented
-  Rate limiting                      Implemented
-  Docker configuration               Prepared
-  Architecture diagram               Prepared
-  ER diagram                         Prepared
-  Scalability plan                   Documented
+  Requirement                          Prototype Status
+  ------------------------------------ ------------------------------------
+  Multiple camera sources              Implemented with simulator sources
+  Camera registry                      Implemented
+  Search / filtering                   Implemented
+  GIS map                              Implemented with Leaflet
+  Camera health                        Implemented
+  Detection event API                  Implemented
+  Detection persistence                Implemented
+  Watchlist                            Implemented
+  Watchlist matching                   Implemented
+  Real-time alerts                     Implemented with WebSocket
+  Alert acknowledgement / resolution   Implemented
+  Vehicle/entity search                Implemented
+  Movement history                     Implemented
+  Event history                        Implemented
+  Audit logs                           Implemented
+  JWT authentication                   Implemented
+  RBAC                                 Implemented
+  Rate limiting                        Implemented
+  Docker configuration                 Prepared
+  Scalability plan                     Documented
+  Architecture / ER documentation      Documentation item
 
 ------------------------------------------------------------------------
 
-## 25. Final Note
+# 25. Final Note
 
 The purpose of this prototype is to demonstrate a functional foundation
 for a centralized CCTV intelligence platform rather than a superficial
@@ -1171,9 +1057,22 @@ CRUD dashboard.
 
 The architecture intentionally separates:
 
-**video sources → analytics → event ingestion → persistence → watchlist
-correlation → real-time alerting → operational dashboard**
+``` text
+Video Sources
+      ↓
+Analytics
+      ↓
+Event Ingestion
+      ↓
+Persistence
+      ↓
+Watchlist Correlation
+      ↓
+Real-Time Alerting
+      ↓
+Operational Dashboard
+```
 
-so that the prototype can evolve toward regional/edge processing, GPU
+This foundation can evolve toward regional/edge processing, GPU
 analytics, distributed event processing, scalable storage, and large
-camera fleets.
+camera fleets while preserving the core operational workflow.

@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user
 from app.db.database import get_db
 from app.models.alert import Alert
-from app.models.camera import Camera
 from app.models.user import User
 from app.schemas.alert import AlertResponse, AlertStatusUpdate
 from app.services.audit import create_audit_log
@@ -18,9 +17,12 @@ router = APIRouter(
 )
 
 
-# =========================================================
-# LIST ALERTS
-# =========================================================
+ALLOWED_ALERT_STATUSES = {
+    "ACTIVE",
+    "ACKNOWLEDGED",
+    "RESOLVED",
+}
+
 
 @router.get(
     "",
@@ -41,15 +43,15 @@ def list_alerts(
 
     if alert_status:
         query = query.filter(
-            Alert.status == alert_status.upper()
+            Alert.status == alert_status.strip().upper()
         )
 
     if severity:
         query = query.filter(
-            Alert.severity == severity.upper()
+            Alert.severity == severity.strip().upper()
         )
 
-    if camera_id:
+    if camera_id is not None:
         query = query.filter(
             Alert.camera_id == camera_id
         )
@@ -57,7 +59,7 @@ def list_alerts(
     if matched_identifier:
         query = query.filter(
             Alert.matched_identifier.ilike(
-                f"%{matched_identifier}%"
+                f"%{matched_identifier.strip()}%"
             )
         )
 
@@ -68,10 +70,6 @@ def list_alerts(
         .all()
     )
 
-
-# =========================================================
-# GET SINGLE ALERT
-# =========================================================
 
 @router.get(
     "/{alert_id}",
@@ -96,10 +94,6 @@ def get_alert(
 
     return alert
 
-
-# =========================================================
-# ACKNOWLEDGE ALERT
-# =========================================================
 
 @router.patch(
     "/{alert_id}/acknowledge",
@@ -128,32 +122,36 @@ def acknowledge_alert(
             detail="Resolved alert cannot be acknowledged",
         )
 
+    if alert.status == "ACKNOWLEDGED":
+        return alert
+
     alert.status = "ACKNOWLEDGED"
 
     if alert.acknowledged_at is None:
         alert.acknowledged_at = datetime.utcnow()
 
-    # Audit log
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="ALERT_ACKNOWLEDGED",
-        resource_type="ALERT",
-        resource_id=str(alert.id),
-        description=(
-            f"Alert {alert.id} acknowledged"
-        ),
-    )
+    try:
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="ALERT_ACKNOWLEDGED",
+            resource_type="ALERT",
+            resource_id=str(alert.id),
+            description=f"Alert {alert.id} acknowledged",
+        )
 
-    db.commit()
-    db.refresh(alert)
+        db.commit()
+        db.refresh(alert)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to acknowledge alert",
+        )
 
     return alert
 
-
-# =========================================================
-# RESOLVE ALERT
-# =========================================================
 
 @router.patch(
     "/{alert_id}/resolve",
@@ -176,34 +174,40 @@ def resolve_alert(
             detail="Alert not found",
         )
 
+    if alert.status == "RESOLVED":
+        return alert
+
+    now = datetime.utcnow()
+
     alert.status = "RESOLVED"
 
     if alert.acknowledged_at is None:
-        alert.acknowledged_at = datetime.utcnow()
+        alert.acknowledged_at = now
 
-    alert.resolved_at = datetime.utcnow()
+    alert.resolved_at = now
 
-    # Audit log
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="ALERT_RESOLVED",
-        resource_type="ALERT",
-        resource_id=str(alert.id),
-        description=(
-            f"Alert {alert.id} resolved"
-        ),
-    )
+    try:
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="ALERT_RESOLVED",
+            resource_type="ALERT",
+            resource_id=str(alert.id),
+            description=f"Alert {alert.id} resolved",
+        )
 
-    db.commit()
-    db.refresh(alert)
+        db.commit()
+        db.refresh(alert)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to resolve alert",
+        )
 
     return alert
 
-
-# =========================================================
-# UPDATE ALERT STATUS
-# =========================================================
 
 @router.patch(
     "/{alert_id}/status",
@@ -227,52 +231,64 @@ def update_alert_status(
             detail="Alert not found",
         )
 
-    new_status = status_data.status.upper()
+    new_status = status_data.status.strip().upper()
 
-    allowed_statuses = {
-        "ACTIVE",
-        "ACKNOWLEDGED",
-        "RESOLVED",
-    }
-
-    if new_status not in allowed_statuses:
+    if new_status not in ALLOWED_ALERT_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                "Invalid status. "
-                "Allowed values: ACTIVE, "
-                "ACKNOWLEDGED, RESOLVED"
+                "Invalid status. Allowed values: "
+                "ACTIVE, ACKNOWLEDGED, RESOLVED"
             ),
         )
 
     old_status = alert.status
 
+    if old_status == new_status:
+        return alert
+
+    now = datetime.utcnow()
+
+    if old_status == "RESOLVED" and new_status != "RESOLVED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Resolved alerts cannot be reopened",
+        )
+
     alert.status = new_status
 
     if new_status == "ACKNOWLEDGED":
         if alert.acknowledged_at is None:
-            alert.acknowledged_at = datetime.utcnow()
+            alert.acknowledged_at = now
 
-    if new_status == "RESOLVED":
+    elif new_status == "RESOLVED":
         if alert.acknowledged_at is None:
-            alert.acknowledged_at = datetime.utcnow()
+            alert.acknowledged_at = now
 
-        alert.resolved_at = datetime.utcnow()
+        if alert.resolved_at is None:
+            alert.resolved_at = now
 
-    # Audit log
-    create_audit_log(
-        db=db,
-        user=current_user,
-        action="ALERT_STATUS_UPDATED",
-        resource_type="ALERT",
-        resource_id=str(alert.id),
-        description=(
-            f"Alert {alert.id} status changed "
-            f"from {old_status} to {new_status}"
-        ),
-    )
+    try:
+        create_audit_log(
+            db=db,
+            user=current_user,
+            action="ALERT_STATUS_UPDATED",
+            resource_type="ALERT",
+            resource_id=str(alert.id),
+            description=(
+                f"Alert {alert.id} status changed "
+                f"from {old_status} to {new_status}"
+            ),
+        )
 
-    db.commit()
-    db.refresh(alert)
+        db.commit()
+        db.refresh(alert)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update alert status",
+        )
 
     return alert

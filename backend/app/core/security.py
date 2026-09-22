@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,6 @@ pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
 )
-
 
 security_scheme = HTTPBearer()
 
@@ -74,7 +73,7 @@ def get_current_user(
 
     try:
         payload = decode_access_token(token)
-    except Exception:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -115,10 +114,6 @@ def get_current_user(
     return user
 
 
-# =========================================================
-# RBAC - ROLE BASED ACCESS CONTROL
-# =========================================================
-
 def require_role(*allowed_roles: str):
     """
     Restrict an endpoint to specific user roles.
@@ -138,7 +133,6 @@ def require_role(*allowed_roles: str):
     def role_checker(
         current_user: User = Depends(get_current_user),
     ) -> User:
-
         user_role = (
             current_user.role or ""
         ).upper()
